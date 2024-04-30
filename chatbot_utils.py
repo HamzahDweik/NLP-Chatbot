@@ -1,8 +1,9 @@
 import re
+import os
 import datetime
 import wikipedia
 import random
-from collections import deque
+from collections import defaultdict
 from nltk import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
@@ -22,6 +23,7 @@ minecraft_guru, tokenizer_ques, tokenizer_ans = load_guru()
 def generate_text(input): return generate_text_(input, minecraft_guru, tokenizer_ques, tokenizer_ans)
 
 CONTEXT_LENGTH = 3
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
 class UserModel:
     """
@@ -29,18 +31,19 @@ class UserModel:
 
     Attributes:
         name (str): The name of the user.
-        sentiment (dict): A dictionary to store sentiments related to various topics.
+        interersts (defaultdict): A dictionary to count topic interests
     """
 
     def __init__(self, name: str):
         self.name = name
-        self.sentiment = []
+        self.interests = defaultdict(int)
 
-    def update_sentiment(self, text):
+    def update_interests(self, topic):
         """Adds or updates sentiment for a given topic."""
-        if ' like ' in text:
-            self.sentiment.append(text)
+        self.interests[topic] += 1
 
+    def retrieve_interest(self, topic):
+        return self.interests[topic]
 
     def save_user(self):
         """Saves the current state of the user model."""
@@ -146,6 +149,144 @@ class UserModel:
 #         dump_users(users)
 #         event.accept()  # proceed with the window closure
 
+topic_keywords = {
+    "Crafting Recipes": ["crafting", "recipes", "craft", "ingredients"],
+    "Building Techniques": ["building", "construction", "architecture", "techniques"],
+    "Survival Tips": ["survival", "tips", "guide", "strategy"],
+    "Redstone Engineering": ["redstone", "circuits", "engineering", "mechanisms"],
+    "Mobs (Enemies and Animals)": ["mobs", "creatures", "enemies", "animals"],
+    "Potions and Brewing": ["potions", "brewing", "alchemy", "ingredients"],
+    "Biomes and Exploration": ["biomes", "exploration", "discover", "terrain"],
+    "Enchantments": ["enchantments", "enchanting", "enchants", "magical"],
+    "Mods and Modding": ["mods", "modding", "modifications", "customization"],
+    "Multiplayer and Servers": ["multiplayer", "servers", "online", "friends"],
+    "Events and Competitions": ["events", "competitions", "tournaments", "contests"],
+    "Resource Gathering": ["resources", "gathering", "mining", "collecting"],
+    "Tools and Weapons": ["tools", "weapons", "gear", "equipment"],
+    "Armor Sets": ["armor", "protection", "sets", "outfits"],
+    "Farming and Food Production": ["farming", "agriculture", "food", "crops"],
+    "Adventure Mode": ["adventure", "mode", "quest", "challenge"],
+    "Creative Mode": ["creative", "mode", "building", "unlimited"],
+    "Story and Lore": ["story", "lore", "background", "history"],
+    "Updates and Patch Notes": ["updates", "patches", "new features", "changes"],
+    "Speedrunning": ["speedrunning", "fast play", "records", "timed"],
+    "Trading with Villagers": ["trading", "villagers", "barter", "trade"],
+    "Achievements and Trophies": ["achievements", "trophies", "awards", "milestones"],
+    "Texture Packs and Skins": ["texture packs", "skins", "graphics", "visuals"],
+    "World Generation": ["world generation", "terrain", "biomes", "create"],
+    "Command Blocks and Cheats": ["command blocks", "cheats", "commands", "codes"],
+    "Minecarts and Transportation": ["minecarts", "transportation", "travel", "vehicles"],
+    "Music and Sounds": ["music", "sounds", "audio", "soundtrack"],
+    "Game Mechanics": ["mechanics", "gameplay", "rules", "systems"],
+    "Environmental Effects": ["environmental", "weather", "effects", "conditions"],
+    "Structures (Villages, Temples, etc.)": ["structures", "buildings", "villages", "temples"],
+    "PvP (Player vs. Player)": ["pvp", "combat", "player vs player", "fighting"],
+    "Minecraft Education Edition": ["education edition", "schools", "learning", "teaching"],
+    "Minecraft Dungeons (Spin-off Game)": ["minecraft dungeons", "dungeons", "spin-off", "adventure game"],
+    "Community Creations": ["community", "creations", "projects", "contributions"],
+    "Minecraft Marketplace": ["marketplace", "buy", "sell", "trade"],
+    "Minecraft Events (like Minecon)": ["minecon", "events", "gatherings", "conventions"],
+    "Player Behavior and Ethics": ["behavior", "ethics", "conduct", "community standards"],
+    "Game Development": ["development", "game design", "updates", "programming"],
+    "Accessibility in Minecraft": ["accessibility", "inclusive", "features", "support"],
+    "Minecraft in Pop Culture": ["pop culture", "references", "media", "appearances"]
+}
+
+inquiry_keywords = [
+    "who are you", "what is your name", "who am I speaking to",
+    "tell me about yourself", "what are you", "are you a robot",
+    "are you human", "what can you do", "how were you made",
+    "who created you", "where do you come from", "what is your purpose",
+    "how do you work", "can you help me", "what is your function",
+    "are you intelligent", "do you understand me", "how smart are you",
+    "what do you know", "are you a chatbot", "do you have feelings",
+    "how old are you"
+]
+
+   
+responses = [
+    "Hello! I'm a chatbot here to help you with any questions you have about Minecraft.",
+    "I'm your friendly neighborhood chatbot, designed to assist you with Minecraft queries.",
+    "Greetings! I'm an AI developed to provide guidance and answers about Minecraft.",
+    "Hi there! Think of me as your assistant for all things Minecraft.",
+    "I'm an artificial intelligence programmed to help you understand and enjoy Minecraft better.",
+    "Hello! I'm crafted by humans to assist in your Minecraft adventure.",
+    "I'm a virtual helper here to navigate the world of Minecraft with you.",
+    "Call me your Minecraft guide, ready to assist with any information you need.",
+    "Hi! I'm here to make your experience with Minecraft smoother and more fun.",
+    "As a chatbot, I'm programmed to provide answers and support for your Minecraft queries."
+]
+
+random_questions = [
+    "What is the level range where diamond ore can be found in Minecraft?",
+    "What is the chance of obtaining a specific mineral when brushing suspicious sand in desert pyramids?",
+    "What is the primary use of diamonds obtained from suspicious sand loot?",
+    "What item can expert-level armorer, toolsmith, and weaponsmith villagers in Bedrock Edition trade for an emerald?",
+    "What is the probability of an expert-level toolsmith villager offering to buy a diamond for an emerald in the Java Edition of Minecraft?",
+    "How do you get a diamond in Minecraft?",
+    "Can I use a diamond ingot as a substitute for a certain type of ingot in beacons?",
+    "What is the most efficient way to obtain a large quantity of coal in the Nether, considering the rarity of coal ore and the limited inventory space in the Nether Fortress?",
+    "What type of data value is related to 'Diamond' in the Bedrock Edition of Minecraft and where can issues regarding it be reported?",
+    "What is the most common cause of naturally occurring diamonds in Minecraft?",
+    "What type of ore is typically found near lava in a Minecraft gallery?",
+    "What type of merchandise does JINX create for Minecraft, and is there any notable artwork featuring diamonds?",
+    "Can any tool be used to instantly break an element in Minecraft Education?",
+    "What is the primary method for obtaining elements and isotopes in Minecraft, according to the element constructor?",
+    "How can you obtain the Unknown element in Minecraft without using the crafting table?",
+    "What is a possible way to obtain a material reducer in Survival mode without using commands?",
+    "What is the most common element in the Earth's crust?",
+    "What is the most abundant isotope of lithium, an alkali metal?",
+    "What is the most abundant alkaline earth metal in the Earth's crust, and what is its most common isotope?",
+    "What is the most abundant post-transition metal in the Earth's crust, and which of its isotopes is most commonly used as a calibration standard in mass spectrometry?",
+    "What is the most abundant non-metal isotope of carbon, and what is its atomic mass?",
+    "What is the atomic number of astatine, a halogen isotope that is a radioactive decay product of uranium and thorium, and has a half-life of 8.1 hours?",
+    "What is the name of the texture used in the top of the Calibrated Sculk Sensor in Minecraft?",
+    "What is the name of the block that is used to charge your devices?",
+    "What is the purpose of the Rainbow Wool side a, side b, side c, side d, side e, and side f in Minecraft Earth?",
+    "What is the version number of the Bedrock Edition released for PlayStation consoles on December 2, 2021?",
+    "What is the term used for the Xbox 360 Edition of Minecraft to describe a major update?",
+    "What is the fastest way to mine pumpkins in Minecraft?",
+    "Why do pumpkins break when pushed by a piston, but not when pulled?",
+    "What type of villages can you find pumpkins naturally generating in pile form?",
+    "What is the key difference between pumpkin farming and melon farming in Minecraft?",
+    "Can I speed up the growth of pumpkin stems by using bone meal on them, and if so, will it immediately produce a pumpkin?",
+    "How many pumpkins do apprentice-level farmer villagers buy from other players in Bedrock Edition?",
+    "What is the probability of a apprentice-level farmer villager buying 6 pumpkins for one emerald?",
+    "What is the use of pumpkins in Minecraft?",
+    "What is the purpose of using note blocks in a Minecraft world?",
+    "What is the primary difference between the Bedrock Edition and the Java Edition of Minecraft in terms of sound generation?",
+    "What is the unique sound effect used in the Bedrock Edition of Minecraft to indicate the presence of a player's bed, which is different from the sound effect used in the Java Edition?",
+    "What is the default material for crafting a stone axe?",
+    "What is the specific tracker where issues related to pumpkins in the Bedrock Edition of Minecraft are maintained?",
+    "What block states are affected when a group of pumpkins is placed?",
+    "What type of biome can naturally spawn pumpkins?",
+    "What is the type of pickaxe required to mine a quartz pillar in Minecraft?",
+    "What do master-level mason villagers sell in Minecraft for an emerald?",
+    "How can you efficiently trade quartz pillars in Minecraft while taking into account the constraints of their rotation?",
+    "How can I create a unique sound effect in Minecraft by using quartz pillars and note blocks?"
+]
+not_sure_responses = [
+    "I'm sorry, I couldn't provide a useful answer to that. Could you rephrase the question more clearly?",
+    "Apologies, but I'm not able to provide a helpful response right now. Could you clarify your question?",
+    "I'm unsure how to answer that effectively. Can you phrase it differently?",
+    "Sorry, I couldn't quite catch that. Can you restate your question more clearly?",
+    "My apologies, I'm unable to give a useful answer. Could you rephrase your inquiry?",
+    "Unfortunately, I can't provide a useful response at the moment. Can you reword your question?",
+    "I'm having trouble understanding that. Can you try asking in a different way?",
+    "Sorry, I'm not able to answer that effectively. Could you clarify what you're asking?",
+    "I'm sorry, that's unclear to me. Could you phrase your question differently?",
+    "Apologies, but I couldn't give a helpful answer there. Can you ask in another way?"
+]
+
+interested_responses = [
+    "Wow, you really seem interested in",
+    "It's clear you have a deep interest in",
+    "You're quite enthusiastic about",
+    "I can tell you're very passionate about",
+    "I really admire your interest in"
+]
+
+
 def dump_users(users, filename='saves/users.pkl'):
     """
     Dumps the user data to a file using pickle.
@@ -214,31 +355,6 @@ def calculate_similarity(input_tokens, choices):
     return choices[best_choice_index], scores[best_choice_index]
 
 def respond_to_self_inquiry(user_input):
-    # List of phrases that might mean the user is asking about the chatbot
-    inquiry_keywords = [
-        "who are you", "what is your name", "who am I speaking to",
-        "tell me about yourself", "what are you", "are you a robot",
-        "are you human", "what can you do", "how were you made",
-        "who created you", "where do you come from", "what is your purpose",
-        "how do you work", "can you help me", "what is your function",
-        "are you intelligent", "do you understand me", "how smart are you",
-        "what do you know", "are you a chatbot", "do you have feelings",
-        "how old are you"
-    ]
-
-    # Responses the chatbot can choose from
-    responses = [
-        "Hello! I'm a chatbot here to help you with any questions you have about Minecraft.",
-        "I'm your friendly neighborhood chatbot, designed to assist you with Minecraft queries.",
-        "Greetings! I'm an AI developed to provide guidance and answers about Minecraft.",
-        "Hi there! Think of me as your assistant for all things Minecraft.",
-        "I'm an artificial intelligence programmed to help you understand and enjoy Minecraft better.",
-        "Hello! I'm crafted by humans to assist in your Minecraft adventure.",
-        "I'm a virtual helper here to navigate the world of Minecraft with you.",
-        "Call me your Minecraft guide, ready to assist with any information you need.",
-        "Hi! I'm here to make your experience with Minecraft smoother and more fun.",
-        "As a chatbot, I'm programmed to provide answers and support for your Minecraft queries."
-    ]
 
     # Check if the input is about the chatbot itself
     if any(term in user_input.lower() for term in inquiry_keywords):
@@ -248,58 +364,8 @@ def respond_to_self_inquiry(user_input):
 def check_for_fact(user_input):
     # Check if user asks for a random fact
     if " fact " in user_input.lower():
-        random_questions = [
-            "What is the level range where diamond ore can be found in Minecraft?",
-            "What is the chance of obtaining a specific mineral when brushing suspicious sand in desert pyramids?",
-            "What is the primary use of diamonds obtained from suspicious sand loot?",
-            "What item can expert-level armorer, toolsmith, and weaponsmith villagers in Bedrock Edition trade for an emerald?",
-            "What is the probability of an expert-level toolsmith villager offering to buy a diamond for an emerald in the Java Edition of Minecraft?",
-            "How do you get a diamond in Minecraft?",
-            "Can I use a diamond ingot as a substitute for a certain type of ingot in beacons?",
-            "What is the most efficient way to obtain a large quantity of coal in the Nether, considering the rarity of coal ore and the limited inventory space in the Nether Fortress?",
-            "What type of data value is related to 'Diamond' in the Bedrock Edition of Minecraft and where can issues regarding it be reported?",
-            "What is the most common cause of naturally occurring diamonds in Minecraft?",
-            "What type of ore is typically found near lava in a Minecraft gallery?",
-            "What type of merchandise does JINX create for Minecraft, and is there any notable artwork featuring diamonds?",
-            "Can any tool be used to instantly break an element in Minecraft Education?",
-            "What is the primary method for obtaining elements and isotopes in Minecraft, according to the element constructor?",
-            "How can you obtain the Unknown element in Minecraft without using the crafting table?",
-            "What is a possible way to obtain a material reducer in Survival mode without using commands?",
-            "What is the most common element in the Earth's crust?",
-            "What is the most abundant isotope of lithium, an alkali metal?",
-            "What is the most abundant alkaline earth metal in the Earth's crust, and what is its most common isotope?",
-            "What is the most abundant post-transition metal in the Earth's crust, and which of its isotopes is most commonly used as a calibration standard in mass spectrometry?",
-            "What is the most abundant non-metal isotope of carbon, and what is its atomic mass?",
-            "What is the atomic number of astatine, a halogen isotope that is a radioactive decay product of uranium and thorium, and has a half-life of 8.1 hours?",
-            "What is the name of the texture used in the top of the Calibrated Sculk Sensor in Minecraft?",
-            "What is the name of the block that is used to charge your devices?",
-            "What is the purpose of the Rainbow Wool side a, side b, side c, side d, side e, and side f in Minecraft Earth?",
-            "What is the version number of the Bedrock Edition released for PlayStation consoles on December 2, 2021?",
-            "What is the term used for the Xbox 360 Edition of Minecraft to describe a major update?",
-            "What is the fastest way to mine pumpkins in Minecraft?",
-            "Why do pumpkins break when pushed by a piston, but not when pulled?",
-            "What type of villages can you find pumpkins naturally generating in pile form?",
-            "What is the key difference between pumpkin farming and melon farming in Minecraft?",
-            "Can I speed up the growth of pumpkin stems by using bone meal on them, and if so, will it immediately produce a pumpkin?",
-            "How many pumpkins do apprentice-level farmer villagers buy from other players in Bedrock Edition?",
-            "What is the probability of a apprentice-level farmer villager buying 6 pumpkins for one emerald?",
-            "What is the use of pumpkins in Minecraft?",
-            "What is the purpose of using note blocks in a Minecraft world?",
-            "What is the primary difference between the Bedrock Edition and the Java Edition of Minecraft in terms of sound generation?",
-            "What is the unique sound effect used in the Bedrock Edition of Minecraft to indicate the presence of a player's bed, which is different from the sound effect used in the Java Edition?",
-            "What is the default material for crafting a stone axe?",
-            "What is the specific tracker where issues related to pumpkins in the Bedrock Edition of Minecraft are maintained?",
-            "What block states are affected when a group of pumpkins is placed?",
-            "What type of biome can naturally spawn pumpkins?",
-            "What is the type of pickaxe required to mine a quartz pillar in Minecraft?",
-            "What do master-level mason villagers sell in Minecraft for an emerald?",
-            "How can you efficiently trade quartz pillars in Minecraft while taking into account the constraints of their rotation?",
-            "How can I create a unique sound effect in Minecraft by using quartz pillars and note blocks?"
-        ]
         return generate_text(random.choice(random_questions))
     else: return None
-
-
 
 def compute_embeddings(text):
     # Tokenize the text and filter out words not in the model's vocabulary
@@ -324,21 +390,32 @@ def cosine_similarity(vec1, vec2):
     return similarity
 
 def not_sure():
-    responses = [
-        "I'm sorry, I couldn't provide a useful answer to that. Could you rephrase the question more clearly?",
-        "Apologies, but I'm not able to provide a helpful response right now. Could you clarify your question?",
-        "I'm unsure how to answer that effectively. Can you phrase it differently?",
-        "Sorry, I couldn't quite catch that. Can you restate your question more clearly?",
-        "My apologies, I'm unable to give a useful answer. Could you rephrase your inquiry?",
-        "Unfortunately, I can't provide a useful response at the moment. Can you reword your question?",
-        "I'm having trouble understanding that. Can you try asking in a different way?",
-        "Sorry, I'm not able to answer that effectively. Could you clarify what you're asking?",
-        "I'm sorry, that's unclear to me. Could you phrase your question differently?",
-        "Apologies, but I couldn't give a helpful answer there. Can you ask in another way?"
-    ]
-    return random.choice(responses)
+    return random.choice(not_sure_responses)
 
-def generate_response(user_input):
+def detect_topics(input_text):
+    """
+    Detects the topic of the input text by searching for associated keywords.
+
+    Args:
+        input_text (str): The preprocessed input text.
+
+    Returns:
+        str: Detected topic or 'Unknown' if no topic matches.
+    """
+    found_topics = set()
+    for token in input_text.split(' '):
+        for topic, keywords in topic_keywords.items():
+            if token in keywords:
+                found_topics.add(topic)
+    return list(found_topics) if found_topics else []
+
+def update_topics(user, topics):
+    for topic in topics:
+        user.update_interests(topic)
+        if user.retrieve_interest(topic) % 5 == 0:
+            print('Minecraft Guru:', random.choice(interested_responses), f"{topic}!")
+
+def generate_response(user, user_input):
     """
     Generates a response to the user input by processing the input and finding the best match from the knowledge base.
 
@@ -360,10 +437,15 @@ def generate_response(user_input):
     random_fact = check_for_fact(modified_input)
     if random_fact: return random_fact
 
+    # maintains user interests
+    topics = detect_topics(modified_input)
+    update_topics(user, topics)
+
     # generates a response to the question
     potential_response = generate_text(modified_input)
     response_embedding = compute_embeddings(potential_response)
     question_embedding = compute_embeddings(modified_input)
+
 
     similarity_score = cosine_similarity(question_embedding, response_embedding)
     if similarity_score > 0.5: return potential_response
@@ -372,7 +454,7 @@ def generate_response(user_input):
 
 def introduction():
     """
-    Generates an introduction message that explains the bot's expertise in Tom Holland and asks the user about their questions.
+    Generates an introduction message that explains the bot's expertise in Minecraft and asks the user about their questions.
 
     Returns:
         str: An introduction message.
@@ -380,25 +462,28 @@ def introduction():
 
     # List of introduction choices
     intro_choices = [
-        "I'm a bot with a wealth of knowledge about Tom Holland. ",
-        "I specialize in all things Tom Holland. ",
-        "I'm your go-to source for any Tom Holland queries. ",
-        "If you've got questions about Tom Holland, you're in the right place. ",
-        "Tom Holland facts and information are my forte. "
+        "I'm a bot with a wealth of knowledge about Minecraft. ",
+        "I specialize in all things Minecraft. ",
+        "I'm your go-to source for any Minecraft queries. ",
+        "If you've got questions about Minecraft, you're in the right place. ",
+        "Minecraft facts and information are my forte. "
     ]
     intro_choice = random.choice(intro_choices)
 
+    # Explain the need for well-formulated questions
+    formulation_advice = "I perform best with well-formulated and detailed questions. You can type 'q' at any point to stop talking to me. For now, "
+
     # List of assist choices
     assist_choices = [
-        "What would you like to know about him?",
-        "Feel free to ask any question about Tom Holland.",
-        "I'm here to answer all your Tom Holland-related questions.",
-        "Do you have any queries regarding Tom Holland?",
-        "Let me know what you're curious about in relation to Tom Holland."
+        "what would you like to know about Minecraft?",
+        "feel free to ask any question about Minecraft gameplay, tips, or history.",
+        "do you have any queries regarding Minecraft strategies or updates?",
+        "let me know what you're curious about in relation to Minecraft."
     ]
     assist_choice = random.choice(assist_choices)
 
-    return intro_choice + assist_choice
+    return 'Minecrat Guru: ' + intro_choice + formulation_advice + assist_choice
+
 
 def greeting():
     """
@@ -409,7 +494,7 @@ def greeting():
     """
     
     # list of greeting choices
-    choices = ['Hello, ', 'Greetings! ', 'Hey, ', "How's it going?", 'time-based', 'time-based', 'time-based']
+    choices = ['Hello,', 'Greetings!', 'Hey,', "How's it going?", 'time-based', 'time-based', 'time-based']
     choice = random.choice(choices)
 
     # determine greeting based on the current time
@@ -425,7 +510,7 @@ def greeting():
     # Add a follow-up question to the greeting
     choices = ["Who do I have the pleasure of speaking with today?", "What's your name?", 'To whom am I speaking?']
     second_choice = random.choice(choices)
-    return choice + " I am the minecraft guru! " + second_choice + " "
+    return 'Minecrat Guru: ' + choice + " I am the minecraft guru, " + second_choice + " "
 
 def greet_user(users):
     """
@@ -437,17 +522,17 @@ def greet_user(users):
     Returns:
         UserModel: The user model for the current user.
     """
-    name = input(greeting())
+    name = input(greeting() + '\nUser: ')
     lower_name = name.lower()
 
     # create a new user or retrieve existing user data
     if lower_name in users:
         user = users[lower_name]
-        print("Welcome back " + user.name + "!")
+        print(f'Minecrat Guru: Welcome back {user.name}!')
     else:
         users[lower_name] = UserModel(name=name)
         user = users[lower_name]
-        print("It's nice to meet you " + user.name)
+        print(f"Minecrat Guru: It's nice to meet you {user.name}.")
     
     return user
 
@@ -484,7 +569,7 @@ def ask_for_input(user):
         f"{user.name}, do you have a follow-up question or another topic in mind?"
     ]
 
-    user_response = input(random.choice(prompts) + f'\n{user.name}: ')
+    user_response = input('Minecraft Guru: ' + random.choice(prompts) + f'\n{user.name}: ')
     return user_response
 
 
@@ -495,13 +580,19 @@ def chat():
     Uses the user model and user input to generate and display responses.
     """
     users = load_user_data()
+    for name, user in users.items():
+        print('Name: ' + user.name)
+        print(f'Interests: {user.interests}')
     user = greet_user(users)
+    user_input = input(introduction() + f'\n{user.name}: ')
+    response = generate_response(user, user_input)
+    print(f'Minecraft Guru: {response}\n')
 
     while True:
         user_input = ask_for_input(user)
         if user_input == 'q': dump_users(users); break
-        response = generate_response(user_input) 
-        print(f'MinecraftGuru: {response}', end=' ')
+        response = generate_response(user, user_input) 
+        print(f'\nMinecraft Guru: {response}')
         
     # load GUI
     # app = QApplication(sys.argv)
