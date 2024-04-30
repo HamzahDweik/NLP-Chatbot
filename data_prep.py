@@ -16,7 +16,7 @@ def load_dataset(file_path):
     with open(file_path, 'r') as file:
         return json.load(file)
 
-dataset_path = '/Users/Hamza/Documents/chatbot/datasets/train.json'
+dataset_path = 'datasets/train.json'
 dataset = load_dataset(dataset_path)
 
 def preprocess_data(dataset):
